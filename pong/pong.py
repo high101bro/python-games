@@ -16,7 +16,9 @@ Learning how to write games with my son Nathan
 ==========================
 """
 import turtle as t
-import random
+import winsound, os
+import random 
+
 
 print('Starting Pong...')
 
@@ -302,11 +304,18 @@ while True :
 
         # Top boarder
         if ball.ycor() > 290 :
+            winsound.PlaySound("bounce.wav", winsound.SND_ASYNC )
+            os.system("afplay bounce.wav&" )
+            os.system("aplay bounce.wav&" )
+
             ball.sety(290)
             ball.dy *= -1
 
         # Bottom boarder
         elif ball.ycor() < -290 :
+            winsound.PlaySound("bounce.wav", winsound.SND_ASYNC )
+            os.system("afplay bounce.wav&" )
+            os.system("aplay bounce.wav&" )
             ball.sety(-290)
             ball.dy *= -1
 
@@ -316,6 +325,10 @@ while True :
             if leftShield :
                 ball.dx *= -1  
             else :
+                winsound.PlaySound("score.wav", winsound.SND_ASYNC )
+                os.system("afplay score.wav&" )
+                os.system("aplay score.wav&" )
+
                 randomStart(ball)
                 leftPaddle.goto(-350,0)
                 rightPaddle.goto(350,0) 
@@ -331,6 +344,10 @@ while True :
             if rightShield :
                 ball.dx *= -1
             else :
+                winsound.PlaySound("score.wav", winsound.SND_ASYNC )
+                os.system("afplay score.wav&" )
+                os.system("aplay score.wav&" )
+
                 randomStart(ball)
                 leftPaddle.goto(-350,0)
                 rightPaddle.goto(350,0)
@@ -354,15 +371,23 @@ while True :
 
             # Accounts for bug where ball bounces between paddle and wall
             if ball.ycor() < leftPaddle.ycor() + 55 and ball.ycor() > leftPaddle.ycor() -55 :
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC )
+                os.system("afplay bounce.wav&" )
+                os.system("aplay bounce.wav&" )
+
                 ball.setx(-340)
                 ball.dx *= -1.1
+
         elif ball.xcor() < -330 and ball.xcor() > -340 :
-            print('push')
             rightScore.clear()
             updateScreenText(leftScoreCount,rightScoreCount,ball.dx * 10)
 
             # Accounts for bug where ball bounces between paddle and wall
             if ball.ycor() < leftPaddle.ycor() + 55 and ball.ycor() > leftPaddle.ycor() -55 :
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC )
+                os.system("afplay bounce.wav&" )
+                os.system("aplay bounce.wav&" )
+
                 ball.setx(-330)
                 ball.dx *= -1.5
 
@@ -374,9 +399,14 @@ while True :
 
             # Accounts for bug where ball bounces between paddle and wall
             if ball.ycor() < rightPaddle.ycor() + 55 and ball.ycor() > rightPaddle.ycor() -55 :
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC )
+                os.system("afplay bounce.wav&" )
+                os.system("aplay bounce.wav&" )
+
                 ball.setx(340)
                 ball.dx *= -1.1
 
+            # # Code for potential angle changing
             # if ball.ycor() < rightPaddle.ycor() + 10 and ball.ycor() > rightPaddle.ycor() -10 :
             #     # Accounts for bug where ball bounces between paddle and wall
             #     ball.setx(340)
