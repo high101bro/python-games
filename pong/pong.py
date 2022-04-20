@@ -1,15 +1,15 @@
 #! /bin/env python3
 """
-Game: Simple Pong
+Game: Pong
 
 Daniel Komnick (high101bro)
 8 April 2022
 Learning how to write games with my son Nathan
 
 ==========================
-|      Simple Pong       |
+|          Pong          |
 | []                     |    
-|         o              |
+|       o                |
 |                        |
 |                     [] |
 |                        |
