@@ -48,7 +48,7 @@ leftPaddle.dy = .2         # Y Delta Speed
 
 # Right Paddle
 rightPaddle = t.Turtle()
-rightPaddle.speed(0)          # 0 = fastest speed
+rightPaddle.speed(0)        # 0 = fastest speed
 rightPaddle.shape("square") # "square","circle","triange","turtle"
 rightPaddle.color("pink")
 rightPaddle.shapesize(      # default size is 20px by 20px
@@ -213,9 +213,13 @@ def rightPaddleDown() :
 def rightPaddleLeft() :
     global rightPaddleDirection
     rightPaddleDirection = 'none'
-    # x = rightPaddle.xcor()
-    # x -= paddleSpeed
-    # rightPaddle.setx(x)
+    x = rightPaddle.xcor()
+    if rightPaddle.xcor() == 350 :
+        x -= 20
+    rightPaddle.setx(x)
+    
+    global rightPushCounter
+    rightPushCounter = 250
 
 def rightPaddleRight() :
     global rightPaddleDirection
@@ -248,6 +252,7 @@ window.onkeypress(rightPaddleRight,  "l")
 window.onkeypress(upadateGaneStatus, "space")
 
 leftPushCounter = 0
+rightPushCounter = 0
 
 # Main game loop
 while True :
@@ -285,11 +290,16 @@ while True :
 
     # returns the paddle to normal state from boarder
     leftPushCounter -= 1
+    rightPushCounter -= 1
     if (leftPaddle.xcor() != -350) and not (leftPushCounter > 0) :
         x = leftPaddle.xcor()
         x -= 20
         leftPaddle.setx(x)
-        
+
+    if (rightPaddle.xcor() != 350) and not (rightPushCounter > 0) :
+        x = rightPaddle.xcor()
+        x += 20
+        rightPaddle.setx(x)
 
     if gameStatus == "running" :
 
@@ -366,7 +376,7 @@ while True :
 
         # Left Paddle Bounce
         if ball.xcor() < -340 and ball.xcor() > -350 :
-            rightScore.clear()
+            leftScore.clear()
             updateScreenText(leftScoreCount,rightScoreCount,ball.dx * 10)
 
             # Accounts for bug where ball bounces between paddle and wall
@@ -379,7 +389,7 @@ while True :
                 ball.dx *= -1.1
 
         elif ball.xcor() < -330 and ball.xcor() > -340 :
-            rightScore.clear()
+            leftScore.clear()
             updateScreenText(leftScoreCount,rightScoreCount,ball.dx * 10)
 
             # Accounts for bug where ball bounces between paddle and wall
@@ -393,7 +403,7 @@ while True :
 
 
         # Right Paddle Bounce
-        elif ball.xcor() > 340 and ball.xcor() < 350 :
+        if ball.xcor() > 340 and ball.xcor() < 350 :
             rightScore.clear()
             updateScreenText(leftScoreCount,rightScoreCount,ball.dx * 10)
 
@@ -406,6 +416,18 @@ while True :
                 ball.setx(340)
                 ball.dx *= -1.1
 
+        elif ball.xcor() > 330 and ball.xcor() < 340 :
+            rightScore.clear()
+            updateScreenText(leftScoreCount,rightScoreCount,ball.dx * 10)
+
+            # Accounts for bug where ball bounces between paddle and wall
+            if ball.ycor() < rightPaddle.ycor() + 55 and ball.ycor() > rightPaddle.ycor() -55 :
+                winsound.PlaySound("bounce.wav", winsound.SND_ASYNC )
+                os.system("afplay bounce.wav&" )
+                os.system("aplay bounce.wav&" )
+
+                ball.setx(330)
+                ball.dx *= -1.5
             # # Code for potential angle changing
             # if ball.ycor() < rightPaddle.ycor() + 10 and ball.ycor() > rightPaddle.ycor() -10 :
             #     # Accounts for bug where ball bounces between paddle and wall
