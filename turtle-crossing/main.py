@@ -16,6 +16,10 @@ y_positions = list(range(-300, 300, 20))
 initial_food = 10
 number_of_balls = 4
 
+initial_candies = 2
+candies = []
+
+
 screen = Screen()
 screen.title("Turtle Crossing")
 screen.setup(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -91,7 +95,7 @@ for _ in range(number_of_balls):
     ball = Ball(
         file=r".\images\soccer-ball-resized.gif",
         xcor=random.choice(x_positions),
-        y_cor=random.choice(y_positions),
+        ycor=random.choice(y_positions),
         screen_width=SCREEN_WIDTH,
         screen_height=SCREEN_HEIGHT,
     )
@@ -165,7 +169,7 @@ pets = []
 player_1 = Pet(
     color='pink',
     xcor=random.choice(x_positions),
-    y_cor=random.choice(y_positions),
+    ycor=random.choice(y_positions),
     screen_width=SCREEN_WIDTH,
     screen_height=SCREEN_HEIGHT,
 )
@@ -173,7 +177,7 @@ player_1 = Pet(
 player_2 = Pet(
     color='blue',
     xcor=random.choice(x_positions),
-    y_cor=random.choice(y_positions),
+    ycor=random.choice(y_positions),
     screen_width=SCREEN_WIDTH,
     screen_height=SCREEN_HEIGHT,
 )
@@ -184,10 +188,18 @@ for _ in range(initial_food):
     food = Food()
     food.spawn(
         xcor=random.choice(x_positions),
-        y_cor=random.choice(y_positions),
+        ycor=random.choice(y_positions),
     )
     game.food_list.append(food)
 
+# Create Initial Candy
+for _ in range(initial_candies):
+    candy = Candy()
+    candy.spawn(
+        xcor=random.choice(x_positions),
+        ycor=random.choice(y_positions),
+    )
+    game.candy_list.append(candy)
 
 def randomly_spawn_food(food_queue):
     while True:
@@ -200,6 +212,17 @@ spawn_thread_food = threading.Thread(target=randomly_spawn_food, args=(game.food
 spawn_thread_food.daemon = True  # Daemon thread exits when main program exits
 spawn_thread_food.start()
 
+
+def randomly_spawn_candy(candy_queue):
+    while True:
+        wait_time = random.randint(15, 30)
+        time.sleep(wait_time)
+        candy_queue.put("spawn")
+
+
+spawn_thread_candy = threading.Thread(target=randomly_spawn_candy, args=(game.candy_queue,))
+spawn_thread_candy.daemon = True  # Daemon thread exits when main program exits
+spawn_thread_candy.start()
 
 def randomly_spawn_vehicle(vehicles_driving_left_queue):
     while True:
@@ -242,7 +265,7 @@ for color in pet_colors:
     pet = Pet(
         color=color,
         xcor=random.choice(x_positions),
-        y_cor=random.choice(y_positions),
+        ycor=random.choice(y_positions),
         screen_width=SCREEN_WIDTH,
         screen_height=SCREEN_HEIGHT,
     )
@@ -251,7 +274,8 @@ for color in pet_colors:
 
 def player_1_eat():
     player_1.eat_food(game, scoreboard)
-
+    player_1.eat_candy(game, scoreboard)
+    print('attempting to eat')
 
 def player_1_poop():
     player_1.poop(game)
@@ -259,6 +283,8 @@ def player_1_poop():
 
 def player_2_eat():
     player_2.eat_food(game, scoreboard)
+    player_2.eat_candy(game, scoreboard)
+    print('attempting to eat')
 
 
 def player_2_poop():
@@ -344,9 +370,22 @@ while True:
             food = Food()
             food.spawn(
                 xcor=random.choice(x_positions),
-                y_cor=random.choice(y_positions),
+                ycor=random.choice(y_positions),
             )
             game.food_list.append(food)
+
+    # Check if there's anything in the queue
+    while not game.candy_queue.empty():
+        command = game.candy_queue.get()
+        if command == "spawn":
+            # Spawn food in the main thread
+            candy = Candy()
+            candy.spawn(
+                xcor=random.choice(x_positions),
+                ycor=random.choice(y_positions),
+            )
+            game.candy_list.append(candy)
+
 
     # Check if there's anything in the queue for vehicles driving left
     while not game.vehicles_driving_left_queue.empty():
@@ -385,6 +424,7 @@ while True:
 
             attempt_spawn_reset()
 
+    # runs turtles over from the left
     for vehicle in game.vehicles_driving_left_list:
         if vehicle.moving:
             vehicle.drive()
@@ -408,6 +448,7 @@ while True:
             vehicle.moving = False
             vehicle.hideturtle()
 
+    # runs turtles over from the right
     for vehicle in game.vehicles_driving_right_list:
         if vehicle.moving:
             vehicle.drive()
@@ -431,10 +472,12 @@ while True:
             vehicle.moving = False
             vehicle.hideturtle()
 
+    # has pets move
     for pet in pets:
         pet.speed(1)
         pet.move_randomly(screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
+    # has pets move the ball
     for pet in pets:
         for ball in balls:
             pet.push_ball(ball)

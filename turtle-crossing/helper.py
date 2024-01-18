@@ -28,6 +28,8 @@ class Game(Turtle):
         self.turtle_splats = 0
         self.food_queue = queue.Queue()
         self.food_list = []
+        self.candy_queue = queue.Queue()
+        self.candy_list = []
         self.poop_list = []
 
 
@@ -124,17 +126,18 @@ class Splat(Turtle):
 
 
 class Pet(Turtle):
-    def __init__(self, color, xcor, y_cor, screen_width, screen_height):
+    def __init__(self, color, xcor, ycor, screen_width, screen_height):
         super().__init__()
         self.direction = None
         self.stamp()
         self.color(color)
         self.shape('turtle')
         self.penup()
-        self.goto((xcor, y_cor))
+        self.goto((xcor, ycor))
         self.stomach = 0
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.shapesize(stretch_wid=1, stretch_len=1, outline=0)
 
     def reset(self, scoreboard):
         self.hideturtle()
@@ -144,6 +147,7 @@ class Pet(Turtle):
         with open("turtle_squishes.pkl", "wb") as file:
             pickle.dump(scoreboard.turtle_squishes, file)
             scoreboard.update_score()
+        self.shapesize(stretch_wid=1, stretch_len=1, outline=0)
 
     def move_up(self):
         if self.ycor() + 20 > ((self.screen_height / 2) - 20):
@@ -207,6 +211,8 @@ class Pet(Turtle):
                 # screen_height
                 self.forward(20)
 
+
+
     def eat_food(self, game, scoreboard):
         for index, food in enumerate(game.food_list):
             if self.distance(food) < 15:
@@ -217,17 +223,29 @@ class Pet(Turtle):
                 self.stomach += 1
                 scoreboard.increase_score()
 
+    def eat_candy(self, game, scoreboard):
+        for index, candy in enumerate(game.candy_list):
+            if self.distance(candy) < 15:
+                print('Yummy candy!')
+                candy.hideturtle()
+                # candy.clear()
+                game.candy_list.remove(candy)
+                self.stomach += 1
+                self.shapesize(self.shapesize()[0] * 1.1, self.shapesize()[1] * 1.1)
+                # self.shapesize(stretch_wid=2, stretch_len=2, outline=1)
+                scoreboard.increase_score()
+
     def poop(self, game):
         poop_dist = 10
         poop = None
         if self.heading() == UP:
-            poop = Poop(xcor=self.xcor(), y_cor=self.ycor() - poop_dist)
+            poop = Poop(xcor=self.xcor(), ycor=self.ycor() - poop_dist)
         elif self.heading() == DOWN:
-            poop = Poop(xcor=self.xcor(), y_cor=self.ycor() + poop_dist)
+            poop = Poop(xcor=self.xcor(), ycor=self.ycor() + poop_dist)
         elif self.heading() == LEFT:
-            poop = Poop(xcor=self.xcor() + poop_dist, y_cor=self.ycor())
+            poop = Poop(xcor=self.xcor() + poop_dist, ycor=self.ycor())
         elif self.heading() == RIGHT:
-            poop = Poop(xcor=self.xcor() - poop_dist, y_cor=self.ycor())
+            poop = Poop(xcor=self.xcor() - poop_dist, ycor=self.ycor())
         game.poop_list.append(poop)
 
     def push_ball(self, ball):
@@ -240,13 +258,13 @@ class Pet(Turtle):
 
 
 class Ball(Turtle):
-    def __init__(self, file, xcor, y_cor, screen_width, screen_height):
+    def __init__(self, file, xcor, ycor, screen_width, screen_height):
         super().__init__()
         self.direction = None
         self.stamp()
         self.shape(file)
         self.penup()
-        self.goto((xcor, y_cor))
+        self.goto((xcor, ycor))
         self.screen_width = screen_width
         self.screen_height = screen_height
 
@@ -282,25 +300,41 @@ class Ball(Turtle):
             self.setheading(RIGHT)
             self.forward(20)
 
+
+class Candy(Turtle):
+    def __init__(self):
+        super().__init__()
+        self.stamp()
+        self.hideturtle()
+        self.color('red')
+        self.penup()
+        self.shape('circle')
+        self.shapesize(0.5)
+
+    def spawn(self, xcor, ycor):
+        self.goto(xcor, ycor)
+        self.showturtle()
+
+
 class Food(Turtle):
     def __init__(self):
         super().__init__()
         self.stamp()
         self.count = 0
 
-    def spawn(self, xcor, y_cor):
+    def spawn(self, xcor, ycor):
         self.hideturtle()
         self.color('green')
         self.penup()
         self.shape('circle')
         self.shapesize(0.5)
-        self.goto((xcor, y_cor))
+        self.goto((xcor, ycor))
         self.showturtle()
 
 
 class Poop(Turtle):
 
-    def __init__(self, xcor, y_cor):
+    def __init__(self, xcor, ycor):
         super().__init__()
         self.stamp()
         self.hideturtle()
@@ -309,5 +343,5 @@ class Poop(Turtle):
         self.penup()
         self.shape('circle')
         self.shapesize(0.25)
-        self.goto((xcor, y_cor))
+        self.goto((xcor, ycor))
         self.showturtle()
