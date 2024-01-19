@@ -185,6 +185,47 @@ class Pet(Turtle):
             self.setheading(RIGHT)
             self.forward(20)
 
+    def move_towards_closest_candy(self, game):
+        closest_candy = None
+        min_distance = float('inf')
+
+        # Find the closest candy
+        for candy in game.candy_list:
+            distance = self.distance(candy)
+            if distance < min_distance:
+                min_distance = distance
+                closest_candy = candy
+
+        # Determine direction towards the closest candy
+        if closest_candy is not None:
+            angle_to_candy = self.towards(closest_candy)
+            direction = self.get_closest_cardinal_direction(angle_to_candy)
+            self.setheading(direction)
+            self.forward(20)  # Adjust the distance moved per step as needed
+
+    def get_closest_cardinal_direction(self, angle):
+        # Define cardinal directions
+        up, right, down, left = 90, 0, 270, 180
+
+        # Calculate the difference between the angle and each cardinal direction
+        diff_up = abs(angle - up)
+        diff_right = abs(angle - right)
+        diff_down = abs(angle - down)
+        diff_left = abs(angle - left)
+
+        # Find the closest cardinal direction
+        closest_direction = min([diff_up, diff_right, diff_down, diff_left], key=abs)
+
+        # Return the corresponding cardinal direction
+        if closest_direction == diff_up:
+            return up
+        elif closest_direction == diff_right:
+            return right
+        elif closest_direction == diff_down:
+            return down
+        elif closest_direction == diff_left:
+            return left
+
     def move_randomly(self, screen_width, screen_height):
         directions = {
             'up': 90,
@@ -228,15 +269,14 @@ class Pet(Turtle):
                 scoreboard.increase_score()
 
     def eat_candy(self, game, scoreboard):
-        for index, candy in enumerate(game.candy_list):
+        for candy in list(game.candy_list):
             if self.distance(candy) < 15:
-                print('Yummy candy!')
+                print(f'{self.color()} pet ate candy!')
                 candy.hideturtle()
-                # candy.clear()
                 game.candy_list.remove(candy)
                 self.stomach += 1
-                self.shapesize(self.shapesize()[0] * 1.1, self.shapesize()[1] * 1.1)
-                # self.shapesize(stretch_wid=2, stretch_len=2, outline=1)
+                current_size = self.shapesize()
+                self.shapesize(stretch_wid=current_size[0] + 0.1, stretch_len=current_size[1] + 0.1)
                 scoreboard.increase_score()
 
     def eat_pet(self, pets, scoreboard):

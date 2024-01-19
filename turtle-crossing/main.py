@@ -16,7 +16,7 @@ y_positions = list(range(-300, 300, 20))
 initial_food = 10
 number_of_balls = 4
 
-initial_candies = 20
+initial_candies = 50
 candies = []
 
 
@@ -215,7 +215,7 @@ spawn_thread_food.start()
 
 def randomly_spawn_candy(candy_queue):
     while True:
-        wait_time = random.randint(15, 30)
+        wait_time = random.randint(5, 10)
         time.sleep(wait_time)
         candy_queue.put("spawn")
 
@@ -471,24 +471,22 @@ while True:
             vehicle.moving = False
             vehicle.hideturtle()
 
-    # has pets move
     for pet in pets:
+        # pets move
         pet.speed(1)
-        pet.move_randomly(screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
+        chance_to_move = random.randint(1,1000)
+        if chance_to_move > 990:
+            pet.move_towards_closest_candy(game)
+        else:
+            pet.move_randomly(screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT)
 
-    # has pets move the ball
-    for pet in pets:
+        # pets eating candy
+        pet.eat_candy(game, scoreboard)
+
+
+        # pets move the ball
         for ball in balls:
             pet.push_ball(ball)
 
-    # # Logic for player1 and player2 eating other pets
-    # for player in [player_1, player_2]:
-    #     if player.shapesize()[0] >= 1.5:
-    #         for pet in pets:
-    #             if player.distance(pet) < 25:
-    #                 print(f'{player} ate a pet!')
-    #                 # pet.hideturtle()
-    #                 # pet.goto(1000, 1000)  # Move the eaten pet off-screen
-    #                 # pets.remove(pet)  # Remove the pet from the list
-    #                 pet.reset(scoreboard)
+
 screen.exitonclick()
