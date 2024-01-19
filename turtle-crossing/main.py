@@ -275,7 +275,10 @@ for color in pet_colors:
 def player_1_eat():
     player_1.eat_food(game, scoreboard)
     player_1.eat_candy(game, scoreboard)
-    print('attempting to eat')
+    player_1.eat_pet(pets, scoreboard)
+
+    print('player attempting to eat')
+
 
 def player_1_poop():
     player_1.poop(game)
@@ -284,7 +287,7 @@ def player_1_poop():
 def player_2_eat():
     player_2.eat_food(game, scoreboard)
     player_2.eat_candy(game, scoreboard)
-    print('attempting to eat')
+    player_2.eat_pet(pets, scoreboard)
 
 
 def player_2_poop():
@@ -478,4 +481,14 @@ while True:
         for ball in balls:
             pet.push_ball(ball)
 
+    # # Logic for player1 and player2 eating other pets
+    # for player in [player_1, player_2]:
+    #     if player.shapesize()[0] >= 1.5:
+    #         for pet in pets:
+    #             if player.distance(pet) < 25:
+    #                 print(f'{player} ate a pet!')
+    #                 # pet.hideturtle()
+    #                 # pet.goto(1000, 1000)  # Move the eaten pet off-screen
+    #                 # pets.remove(pet)  # Remove the pet from the list
+    #                 pet.reset(scoreboard)
 screen.exitonclick()

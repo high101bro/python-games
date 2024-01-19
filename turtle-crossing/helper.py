@@ -61,6 +61,10 @@ class Scoreboard(Turtle):
         self.score += 1
         self.update_score()
 
+    def decrease_score(self):
+        self.score -= 1
+        self.update_score()
+
     def update_score(self):
         self.clear()
         if self.score > self.high_score:
@@ -234,6 +238,16 @@ class Pet(Turtle):
                 self.shapesize(self.shapesize()[0] * 1.1, self.shapesize()[1] * 1.1)
                 # self.shapesize(stretch_wid=2, stretch_len=2, outline=1)
                 scoreboard.increase_score()
+
+    def eat_pet(self, pets, scoreboard):
+        if self.shapesize()[0] >= 1.1:
+            for pet in list(pets):
+                if self.distance(pet) < 15:
+                    print('Player ate a pet!')
+                    pet.reset(scoreboard)
+                    scoreboard.decrease_score()
+                    current_size = self.shapesize()
+                    self.shapesize(stretch_wid=current_size[0] / 1.1, stretch_len=current_size[1] / 1.1)
 
     def poop(self, game):
         poop_dist = 10
