@@ -8,10 +8,10 @@ X_MARGIN = 100
 Y_MARGIN = 80
 
 SCHOOL_NUMBER = 5
-SCHOOL_FISH_MIN = 2
-SCHOOL_FISH_MAX = 5
+SCHOOL_FISH_MIN = 5
+SCHOOL_FISH_MAX = 10
 FISH_POPULATION_MAX = 50
-INITIAL_SIZE = 0.25
+INITIAL_SIZE = 0.2
 EATING_DISTANCE = 10
 FISH_MAX_SCALE_SIZE = 3
 FISH_SIZE_TO_GIVE_BIRTH = 1
@@ -21,32 +21,39 @@ FISH_NUMBER_TO_BE_BORN_MAX = 4
 FOOD_EATEN_TO_MAKE_BABY = 2 #20
 
 TURNING_ANGLE_INCREMENT = 1
-SPEED_VARIATION = 0.1  # Slight variation in speed for dynamic movement
+SPEED_VARIATION = 0.15  # Slight variation in speed for dynamic movement
 
-COLLISION_RADIUS_SWIM = 30  # Detection radius for avoiding other fish
-COLLISION_RADIUS_FEED = 5  # Detection radius for avoiding other fish
+COLLISION_RADIUS_SWIM = 6  # Detection radius for avoiding other fish
+COLLISION_RADIUS_FEED = 3  # Detection radius for avoiding other fish
 AVOIDANCE_TURN_INCREMENT = 5  # Gradual turn increment for smoother avoidance
 
-SCHOOL_SEPARATION_DISTANCE = 150  # Desired distance between schools
+SCHOOL_SEPARATION_DISTANCE = 100  # Desired distance between schools
 MAX_STRAY_DISTANCE = 200
-PERSONAL_SPACE_MIN = 4  # Minimum personal space
-PERSONAL_SPACE_MAX = 10  # Maximum personal space
+PERSONAL_SPACE_MIN = 2  # Minimum personal space
+PERSONAL_SPACE_MAX = 4  # Maximum personal space
 
 autofeeder_enabled = False
 FOOD_DROPPED = 25
 FOOD_DROP_RADIUS = 100
 FOOD_ACTIVE_HEIGHT = SCREEN_HEIGHT // 2 - 100  # Food becomes active when it's 100 units down from the top
 food_particles = []
-baits = []
+
+WATER_LEVEL_TO_APPLY_BAIT = SCREEN_HEIGHT // 2 - 55
+fishing_line_bait = None
+
+caught_fish = None
+line_toggle = False
 
 
 FISH_SPEED = 0.35
+SUCKER_FISH_SPEED = 0.5
 FOOD_SPEED = 0.20
 CHASE_SPEED = FISH_SPEED * 3  # For some reason they slowed down... this addresses that
 POOP_SPEED = 0.20
 BOAT_SPEED = 1
 LINE_SPEED = 15
-FISH_CAUGHT_MY_PERSON_MIN = 45
+
+FISH_CAUGHT_MY_PERSON_MIN = 25
 
 CLEANING_RADIUS = 100  # Define how close a click needs to be to clean the poop
 
@@ -113,6 +120,8 @@ class Tank:
 
 
 
+school_directions = [0 for _ in range(SCHOOL_NUMBER)]  # Initialize with a direction for each school
+
 class Fish(turtle.Turtle):
     def __init__(self, center_x, center_y, school_index, predator=False):
         super().__init__()
@@ -155,16 +164,163 @@ class Fish(turtle.Turtle):
         self.stomach_display.penup()
         self.stomach_display.hideturtle()
 
-        self.update_stomach_display()  # Now safe to call this method
+        self.update_stomach_display()
+
+        self.min_speed = random.uniform(2, 5)
+        self.max_speed = random.uniform(6, 9)
+        self.current_speed = self.min_speed
+
+    #
+    # def swim_in_school(self):
+    #     global school_directions
+    #
+    #     # Boundaries for clockwise movement with a margin
+    #     margin = 10  # Margin to prevent overshooting
+    #     left_bound = -SCREEN_WIDTH // 2 + 150 + margin
+    #     right_bound = SCREEN_WIDTH // 2 - 150 - margin
+    #     top_bound = SCREEN_HEIGHT // 2 - 150 - margin
+    #     bottom_bound = -SCREEN_HEIGHT // 2 + 150 + margin
+    #
+    #     # Check if this fish hits any boundary
+    #     if self.xcor() >= right_bound and school_directions[self.school_index] == 0:
+    #         school_directions[self.school_index] = 270  # Change to down
+    #     elif self.ycor() <= bottom_bound and school_directions[self.school_index] == 270:
+    #         school_directions[self.school_index] = 180  # Change to left
+    #     elif self.xcor() <= left_bound and school_directions[self.school_index] == 180:
+    #         school_directions[self.school_index] = 90   # Change to up
+    #     elif self.ycor() >= top_bound and school_directions[self.school_index] == 90:
+    #         school_directions[self.school_index] = 0    # Change to right
+    #
+    #     # Set the fish's heading to the school's direction
+    #     self.setheading(school_directions[self.school_index])
+    #
+    #     # Randomly adjust speed
+    #     self.adjust_speed()
+    #
+    #     # Move the fish forward with its current speed
+    #     self.forward(self.current_speed)
+    #
+    # def adjust_speed(self):
+    #     if random.random() < 0.1:  # 10% chance to change speed
+    #         # Determine whether to increase or decrease the speed
+    #         speed_change = 0.5 if random.random() < 0.5 else -0.5
+    #         new_speed = self.current_speed + speed_change
+    #
+    #         # Ensure the new speed is within the min-max range
+    #         self.current_speed = max(self.min_speed, min(new_speed, self.max_speed))
+    #
+
+    ##################################################################
+    def check_boundary_hit(self):
+        # Check if this fish hits any of the boundaries
+        if self.xcor() >= SCREEN_WIDTH // 2 - 150 or self.xcor() <= -SCREEN_WIDTH // 2 + 150:
+            return True
+        if self.ycor() >= SCREEN_HEIGHT // 2 - 150 or self.ycor() <= -SCREEN_HEIGHT // 2 + 150:
+            return True
+        return False
+
+
+    def swim_in_school(self):
+        global school_directions, school_distances
+
+        margin = 60  # Margin from the edge of the screen
+        max_x = SCREEN_WIDTH // 2 - margin
+        max_y = SCREEN_HEIGHT // 2 - margin
+
+        # If the fish is near the edge of the screen, turn it around and move it forward
+        if self.xcor() > max_x or self.xcor() < -max_x or self.ycor() > max_y or self.ycor() < -max_y:
+            self.setheading(self.heading() + 180)  # Turn around by 180 degrees
+            self.forward(10)  # Move forward by 100 units
+
+        # Initialize new_direction with the current direction
+        new_direction = self.heading()
+
+        # Check and turn around if at the edge
+        current_direction = self.heading()
+        target_direction = school_directions[self.school_index]
+        if self.xcor() > max_x or self.xcor() < -max_x:
+            target_direction = 180 - target_direction
+        if self.ycor() > max_y or self.ycor() < -max_y:
+            target_direction = -target_direction
+
+        # Gradually adjust direction towards target direction
+        if current_direction != target_direction:
+            # Calculate the smallest angle difference
+            angle_difference = (target_direction - current_direction + 360) % 360
+            if angle_difference > 180:
+                angle_difference -= 360
+
+            if angle_difference != 0:  # Check to prevent division by zero
+                # Turn by the smaller of the angle difference or the defined increment
+                turn_angle = min(abs(angle_difference), TURNING_ANGLE_INCREMENT)
+                turn_angle *= abs(angle_difference) / angle_difference  # Retain the sign of the angle difference
+                new_direction = current_direction + turn_angle
+
+        self.setheading(new_direction)
+
+        school_directions[self.school_index] = new_direction
+
+        # Update the school direction and distance if needed
+        school_distances[self.school_index] -= 1
+        if school_distances[self.school_index] <= 0:
+            school_directions[self.school_index] = random.randint(0, 360)
+            school_distances[self.school_index] = random.randint(200, 500)
+
+        # Randomly adjust distance if needed
+        if school_distances[self.school_index] <= 0:
+            school_directions[self.school_index] = random.randint(0, 360)
+            school_distances[self.school_index] = random.randint(20, 100)  # Random distance between 20 and 100
+
+        # Randomly vary direction within a small angle to simulate natural movement
+        variation_angle = random.uniform(-10, 10)  # Variation angle range
+        self.setheading(self.heading() + variation_angle)
+
+
+        # Detect if the fish is near the edge and adjust its heading
+        if abs(self.xcor()) > SCREEN_WIDTH * 0.75 or abs(self.ycor()) > SCREEN_HEIGHT * 0.75:
+            angle_to_center = math.atan2(-self.ycor(), -self.xcor())
+            angle_to_center = math.degrees(angle_to_center)
+            self.setheading(self.heading() + 0.25 * ((angle_to_center - self.heading() + 360) % 360 - 180))
+            self.forward(1000)
+
+        # self.forward(FISH_SPEED)
+
+        self.adjust_movement()
+
+        self.avoid_collision(COLLISION_RADIUS_SWIM)
+
+        # Gradually apply avoidance turn
+        if self.avoidance_turn != 0:
+            new_heading = self.heading() + self.avoidance_turn
+            self.setheading(new_heading)
+            self.avoidance_turn *= 0.1  # Reduce avoidance turn over time for smoother movement
+
+        # Vary speed slightly for more natural movement
+        speed = FISH_SPEED + random.uniform(-SPEED_VARIATION, SPEED_VARIATION)
+        self.forward(speed)
+
+        # Update the distance left to swim in this direction
+        school_distances[self.school_index] -= FISH_SPEED
+
+
+
 
     def check_and_remove_near_person(self):
         if self.distance(person) < FISH_CAUGHT_MY_PERSON_MIN:
             self.remove_fish()
+
     def update_stomach_display(self):
         self.stomach_display.clear()  # Clear the previous text
         display_position_y = self.ycor() + 20  # Adjust the Y-offset to display above the fish
         self.stomach_display.goto(self.xcor(), display_position_y)
         self.stomach_display.write(len(self.stomach), align="center", font=("Arial", 8, "normal"))
+
+    def hide_stomach_display(self):
+        self.stomach_display.hideturtle()
+        self.stomach_display.clear()
+
+    def show_stomach_display(self):
+        self.stomach_display.showturtle()
 
     def random_movement(self):
         if self.predator:
@@ -264,6 +420,8 @@ class Fish(turtle.Turtle):
         return PERSONAL_SPACE_MIN * self.size_scale / INITIAL_SIZE
 
     def eat_food(self, closest_food):
+        global caught_fish
+
         if len(self.stomach) < STOMACH_SIZE and closest_food.ycor() < FOOD_ACTIVE_HEIGHT:
             distance_to_food = self.distance(closest_food)
             if distance_to_food < self.get_dynamic_eating_distance():
@@ -274,6 +432,12 @@ class Fish(turtle.Turtle):
                     food_particles.remove(closest_food)  # Remove the food from the list
                 except ValueError:
                     pass  # Handle the exception if the food is already removed
+
+                if closest_food == fishing_line_bait and not closest_food.is_eaten:
+                    closest_food.get_eaten()
+                    caught_fish = self  # Set the caught fish
+                    self.penup()  # To allow free movement
+                    self.hide_stomach_display()  # Hide the stomach display
 
                 # Increase the size of the fish if the stomach is full
                 if len(self.stomach) == STOMACH_SIZE:
@@ -290,6 +454,11 @@ class Fish(turtle.Turtle):
         self.update_stomach_display()
         if self in attracted_fish:
             attracted_fish.remove(self)  # Remove from attracted_fish list
+
+        if closest_food == fishing_line_bait and not closest_food.is_eaten:
+            closest_food.get_eaten()
+            caught_fish = self  # Set the caught fish
+            self.penup()  # To allow free movement
 
     def give_up_chase(self):
         if self in attracted_fish:
@@ -329,87 +498,6 @@ class Fish(turtle.Turtle):
                     self.setheading(away_angle)
                     break  # Once a direction away from a close school is set, no need to check others
 
-    def swim_in_school(self):
-        global school_directions, school_distances
-
-        margin = 60  # Margin from the edge of the screen
-        max_x = SCREEN_WIDTH // 2 - margin
-        max_y = SCREEN_HEIGHT // 2 - margin
-
-        # If the fish is near the edge of the screen, turn it around and move it forward
-        if self.xcor() > max_x or self.xcor() < -max_x or self.ycor() > max_y or self.ycor() < -max_y:
-            self.setheading(self.heading() + 180)  # Turn around by 180 degrees
-            self.forward(10)  # Move forward by 100 units
-
-        # Initialize new_direction with the current direction
-        new_direction = self.heading()
-
-        # Check and turn around if at the edge
-        current_direction = self.heading()
-        target_direction = school_directions[self.school_index]
-        if self.xcor() > max_x or self.xcor() < -max_x:
-            target_direction = 180 - target_direction
-        if self.ycor() > max_y or self.ycor() < -max_y:
-            target_direction = -target_direction
-
-        # Gradually adjust direction towards target direction
-        if current_direction != target_direction:
-            # Calculate the smallest angle difference
-            angle_difference = (target_direction - current_direction + 360) % 360
-            if angle_difference > 180:
-                angle_difference -= 360
-
-            if angle_difference != 0:  # Check to prevent division by zero
-                # Turn by the smaller of the angle difference or the defined increment
-                turn_angle = min(abs(angle_difference), TURNING_ANGLE_INCREMENT)
-                turn_angle *= abs(angle_difference) / angle_difference  # Retain the sign of the angle difference
-                new_direction = current_direction + turn_angle
-
-        self.setheading(new_direction)
-
-        school_directions[self.school_index] = new_direction
-
-        # Update the school direction and distance if needed
-        school_distances[self.school_index] -= 1
-        if school_distances[self.school_index] <= 0:
-            school_directions[self.school_index] = random.randint(0, 360)
-            school_distances[self.school_index] = random.randint(200, 500)
-
-        # Randomly adjust distance if needed
-        if school_distances[self.school_index] <= 0:
-            school_directions[self.school_index] = random.randint(0, 360)
-            school_distances[self.school_index] = random.randint(20, 100)  # Random distance between 20 and 100
-
-        # Randomly vary direction within a small angle to simulate natural movement
-        variation_angle = random.uniform(-10, 10)  # Variation angle range
-        self.setheading(self.heading() + variation_angle)
-
-
-        # Detect if the fish is near the edge and adjust its heading
-        if abs(self.xcor()) > SCREEN_WIDTH * 0.75 or abs(self.ycor()) > SCREEN_HEIGHT * 0.75:
-            angle_to_center = math.atan2(-self.ycor(), -self.xcor())
-            angle_to_center = math.degrees(angle_to_center)
-            self.setheading(self.heading() + 0.25 * ((angle_to_center - self.heading() + 360) % 360 - 180))
-            self.forward(1000)
-
-        # self.forward(FISH_SPEED)
-
-        self.adjust_movement()
-
-        self.avoid_collision(COLLISION_RADIUS_SWIM)
-
-        # Gradually apply avoidance turn
-        if self.avoidance_turn != 0:
-            new_heading = self.heading() + self.avoidance_turn
-            self.setheading(new_heading)
-            self.avoidance_turn *= 0.1  # Reduce avoidance turn over time for smoother movement
-
-        # Vary speed slightly for more natural movement
-        speed = FISH_SPEED + random.uniform(-SPEED_VARIATION, SPEED_VARIATION)
-        self.forward(speed)
-
-        # Update the distance left to swim in this direction
-        school_distances[self.school_index] -= FISH_SPEED
 
     def set_school_direction(self, new_direction):
         global school_directions
@@ -419,6 +507,7 @@ class Fish(turtle.Turtle):
     def swim_towards_food_or_bait(self):
         closest_food = self.find_closest_food()
         closest_bait = self.find_closest_bait()
+
         if closest_food:
             if self.distance(closest_food) < self.get_dynamic_eating_distance():
                 self.eat_food(closest_food)  # Consume the target
@@ -428,31 +517,15 @@ class Fish(turtle.Turtle):
                 angle_to_target = math.degrees(angle_to_target)
                 self.setheading(angle_to_target)
                 self.forward(CHASE_SPEED)
-        # if closest_food:
-        #     # Only proceed if there is a target
-        #     if self.distance(closest_food) < self.get_dynamic_eating_distance():
-        #         # Consume the target
-        #         closest_food.hideturtle()  # Hide the target
-        #         if closest_food in food_particles:
-        #             food_particles.remove(closest_food)  # Remove from food list
-        #     else:
-        #         # Adjust heading towards the target
-        #         angle_to_target = math.atan2(closest_food.ycor() - self.ycor(), closest_food.xcor() - self.xcor())
-        #         angle_to_target = math.degrees(angle_to_target)
-        #         self.setheading(angle_to_target)
-        #         self.forward(CHASE_SPEED)
-        elif closest_bait:
-            # Only proceed if there is a target
-            if self.distance(closest_bait) < self.get_dynamic_eating_distance():
-                # Consume the target
-                closest_bait.hideturtle()  # Hide the target
-                if closest_bait in food_particles:
-                    food_particles.remove(closest_bait)  # Remove from food list
+        elif closest_bait and not closest_bait.is_eaten:
+            # Only chase the bait if it's not eaten
+            distance_to_bait = self.distance(closest_bait)
+            if distance_to_bait < self.get_dynamic_eating_distance():
+                self.eat_food(closest_bait)
             else:
-                # Adjust heading towards the target
-                angle_to_target = math.atan2(closest_bait.ycor() - self.ycor(), closest_bait.xcor() - self.xcor())
-                angle_to_target = math.degrees(angle_to_target)
-                self.setheading(angle_to_target)
+                angle_to_bait = math.atan2(closest_bait.ycor() - self.ycor(), closest_bait.xcor() - self.xcor())
+                angle_to_bait = math.degrees(angle_to_bait)
+                self.setheading(angle_to_bait)
                 self.forward(CHASE_SPEED)
         else:
             # Continue with other behavior (like swimming in school) if no target is found
@@ -477,12 +550,12 @@ class Fish(turtle.Turtle):
         min_distance = float('inf')
 
         # Check for closest bait
-        for bait in baits:
-            distance = self.distance(bait)
-            if distance < min_distance:
-                min_distance = distance
-                closest_target = bait
+        distance = self.distance(fishing_line_bait)
+        if distance < min_distance:
+            min_distance = distance
+            closest_target = fishing_line_bait
         return closest_target
+
     def avoid_collision(self, collision_radius):
         close_fish = [other_fish for other_fish in fishes if other_fish != self and self.distance(other_fish) < collision_radius]
         if close_fish:
@@ -493,9 +566,15 @@ class Fish(turtle.Turtle):
             self.setheading(avg_away_angle)
 
     def forward(self, distance):
+        if line_toggle:
+            self.pendown()
+        else:
+            self.penup()
+            self.clear()
         super().forward(distance)
-        self.update_stomach_display()  # Update the display position as the fish moves
-        self.distance_swam += distance  # Track the distance swum
+        self.update_stomach_display()
+        self.distance_swam += distance
+
         if self.distance_swam >= SWIM_POOP_DISTANCE and self.stomach:
             self.poop()
 
@@ -544,7 +623,7 @@ class SuckerFish(turtle.Turtle):
         # Raise the sucker fish by 10 units
         self.goto(random.randint(-SCREEN_WIDTH//2, SCREEN_WIDTH//2), -SCREEN_HEIGHT//2 + 85)
         self.setheading(0)
-        self.speed = 0.15  # Set a speed for the sucker fish
+        self.speed = SUCKER_FISH_SPEED  # Set a speed for the sucker fish
         # Stretch the sucker fish into a long rectangle
         self.shapesize(0.5, 2.25)  # Adjust the first parameter for height, second for length
 
@@ -635,7 +714,7 @@ class Tank_Top(turtle.Turtle):
         self.penup()
         self.color("white")  # Set the color of the tank top
         self.begin_fill()
-        self.goto(-SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 +20)
+        self.goto(-SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20)
         self.pendown()
         self.forward(SCREEN_WIDTH)
         self.right(90)
@@ -695,12 +774,24 @@ class Person(turtle.Turtle):
         self.goto(boat.xcor(), boat.ycor() + 20)  # Position the person on the boat
         self.fishing_pole = FishingPole(self)
         self.fishing_line = FishingLine(self.fishing_pole)  # Pass the fishing_pole object
+        self.fish_caught = 0  # Initialize fish caught count
+        self.fish_caught_display = turtle.Turtle(visible=False)  # Create a turtle for displaying the fish count
+        self.fish_caught_display.penup()
+        self.fish_caught_display.goto(self.xcor(), self.ycor() + 30)  # Position above the person
+        self.update_fish_caught_display()
+
+
+    def update_fish_caught_display(self):
+        self.fish_caught_display.clear()
+        self.fish_caught_display.write(f"Caught: {self.fish_caught}", align="center", font=("Arial", 12, "normal"))
+
     def update_fishing_pole_direction(self):
         # Update the fishing pole's direction based on the boat's movement
         self.fishing_pole.update_direction(self.boat.last_movement_direction)
 
 
 class FishingPole(turtle.Turtle):
+
     def __init__(self, person):
         super().__init__()
         self.person = person
@@ -711,7 +802,10 @@ class FishingPole(turtle.Turtle):
         self.goto(person.xcor(), person.ycor())
         self.setheading(0)  # Initial direction
 
+
     def update_pole_position(self):
+        global caught_fish
+
         # Position the fishing pole relative to the person
         self.goto(self.person.xcor(), self.person.ycor() - 20)  # Adjust offset as needed
 
@@ -731,6 +825,11 @@ class FishingPole(turtle.Turtle):
 
         # Ensure that the line position is updated whenever the pole position is updated
         self.person.fishing_line.update_line_position()
+
+        if caught_fish:
+            tip_x, tip_y = self.person.fishing_line.get_bait_coordinates()
+            caught_fish.goto(tip_x, tip_y)
+
     def update_direction(self, boat_direction):
         # Point the fishing pole in the opposite direction of the boat's last movement
         if boat_direction != 0:
@@ -759,6 +858,8 @@ class Boat(turtle.Turtle):
         self.direction = 0
 
     def move(self):
+        global caught_fish
+
         new_x = self.xcor() + self.direction
         if new_x < -SCREEN_WIDTH // 2 + X_MARGIN or new_x > SCREEN_WIDTH // 2 - X_MARGIN:
             self.direction *= -1  # Reverse direction if at the tank boundary
@@ -772,8 +873,13 @@ class Boat(turtle.Turtle):
 
         if self.person is not None:
             self.person.fishing_line.bait.update_bait_position()
+
         if self.person:
             self.person.fishing_line.update_line_position()
+
+        if caught_fish:
+            tip_x, tip_y = person.fishing_line.get_bait_coordinates()
+            caught_fish.goto(tip_x, tip_y)
 
     def adjust_vertical_position(self, waves):
         # Get the x-coordinates of the boat
@@ -806,8 +912,11 @@ class FishingLine(turtle.Turtle):
         self.line_length = 15
         self.is_extended = True
         self.bait = Bait(self)
-        global baits
-        baits.append(self.bait)
+        global fishing_line_bait
+        fishing_line_bait = self.bait
+
+    def get_bait_coordinates(self):
+        return self.bait.xcor(), self.bait.ycor()
 
     def update_line_position(self):
         self.clear()
@@ -845,19 +954,27 @@ class FishingLine(turtle.Turtle):
         self.bait.update_bait_position()
 
     def extend_line(self):
+        global caught_fish
         # Increase the line length by a fixed amount
         if self.ycor() > -SCREEN_HEIGHT // 2 + 130:
             self.line_length += LINE_SPEED
+
         self.bait.update_bait_position()
+        if caught_fish:
+            tip_x, tip_y = self.get_bait_coordinates()
+            caught_fish.goto(tip_x, tip_y)
 
     def retract_line(self):
+        global caught_fish
         # Decrease the line length by a fixed amount
         if self.ycor() < self.fishing_pole.ycor() - 15:
             self.line_length -= LINE_SPEED
-        self.bait.update_bait_position()
-        for bait in baits:
-            bait.update_position()
+        # fishing_line_bait.update_bait_position()
 
+        self.bait.update_bait_position()
+        if caught_fish:
+            tip_x, tip_y = self.get_bait_coordinates()
+            caught_fish.goto(tip_x, tip_y)
 
 class Bait(turtle.Turtle):
     def __init__(self, fishing_line):
@@ -868,14 +985,27 @@ class Bait(turtle.Turtle):
         self.shapesize(0.1, 0.25)  # Adjust size as needed
         self.penup()
         self.update_bait_position()
+        self.is_eaten = False  # Add this line
+
+    def get_eaten(self):
+        self.is_eaten = True
+        self.hideturtle()
 
     def update_bait_position(self):
         # Get the end position of the fishing line
         line_end_x, line_end_y = self.fishing_line.position()
-
-        # Get the end position of the fishing line
-        line_end_x, line_end_y = self.fishing_line.position()
         self.goto(line_end_x, line_end_y)
+
+    def reset_bait(self):
+        self.showturtle()  # Make the bait visible again
+        self.update_bait_position()  # Update its position to the end of the line
+
+
+def reset_the_bait():
+    # Check if the end of the fishing line is above the water level
+    if fishing_line_bait.fishing_line.ycor() > WATER_LEVEL_TO_APPLY_BAIT:
+        fishing_line_bait.reset_bait()
+        fishing_line_bait.is_eaten = False  # Reset the eaten status
 
 # # Create the boat
 boat = Boat()
@@ -1002,11 +1132,14 @@ def find_two_closest_fish_for_food(food):
 
 
 def increase_speed():
-    global FISH_SPEED, FOOD_SPEED, POOP_SPEED, CHASE_SPEED
+    global FISH_SPEED, SUCKER_FISH_SPEED, FOOD_SPEED, POOP_SPEED, CHASE_SPEED, BOAT_SPEED, LINE_SPEED
     FISH_SPEED += SPEED_INCREMENT
+    SUCKER_FISH_SPEED += SPEED_INCREMENT
     FOOD_SPEED += SPEED_INCREMENT
     POOP_SPEED += SPEED_INCREMENT
-    CHASE_SPEED += SPEED_INCREMENT
+    CHASE_SPEED = FISH_SPEED * 3
+    BOAT_SPEED += SPEED_INCREMENT
+    LINE_SPEED += SPEED_INCREMENT
 
 
 def decrease_speed():
@@ -1016,13 +1149,39 @@ def decrease_speed():
     POOP_SPEED = max(0.35, POOP_SPEED - SPEED_INCREMENT)
     CHASE_SPEED = max(FISH_SPEED * 3, CHASE_SPEED - SPEED_INCREMENT)
 
+def release_fish():
+    global caught_fish
+    if caught_fish and caught_fish.distance(person) < FISH_CAUGHT_MY_PERSON_MIN:
+        caught_fish.remove_fish()  # Remove the fish from the game
+        person.fish_caught += 1  # Increment the fish caught count
+        person.update_fish_caught_display()  # Update the display
+        caught_fish = None
+    elif caught_fish:
+        caught_fish.update_stomach_display()  # Show the stomach display again if the fish is not close enough
+        caught_fish = None
+
+def toggle_line_display():
+    global line_toggle
+    line_toggle = not line_toggle
+
+
+# Fishing line tip coordinates
+# Create a turtle for displaying the fishing line tip coordinates
+coord_display = turtle.Turtle()
+coord_display.hideturtle()
+coord_display.penup()
+coord_display.goto(SCREEN_WIDTH // 2 - 150, -SCREEN_HEIGHT // 2 + 50)
+
 
 # Bind key events
 screen.listen()
 screen.onkey(increase_speed, "+")
 screen.onkey(decrease_speed, "-")
 screen.onkey(drop_food_on_keypress, "f")
-screen.onkey(toggle_autofeeder, "r")
+screen.onkey(toggle_line_display, "l")
+screen.onkey(toggle_autofeeder, "a")
+screen.onkey(release_fish, "r")
+screen.onkey(reset_the_bait, "b")
 screen.onkey(boat.stop, "/")
 screen.onkey(boat.start_moving_left, "Left")
 screen.onkey(boat.start_moving_right, "Right")
@@ -1036,6 +1195,10 @@ while True:
     # Update the fish count display
     update_fish_count_display()
 
+    # Fishing line tip coordinates
+    tip_x, tip_y = person.fishing_line.get_bait_coordinates()
+    coord_display.clear()  # Clear the previous coordinates
+    coord_display.write(f"Line Tip: ({tip_x:.2f}, {tip_y:.2f})", align="left", font=("Arial", 12, "normal"))
 
     # Assign each food particle to the two closest fish
     food_assignments = {}
@@ -1043,27 +1206,40 @@ while True:
         closest_two_fish = find_two_closest_fish_for_food(food)
         for fish, _ in closest_two_fish:
             food_assignments.setdefault(fish, []).append(food)
-    # Assign bait to the two closest fish
-    for bait in baits:
-        closest_two_fish = find_two_closest_fish_for_food(bait)
-        for fish, _ in closest_two_fish:
-            food_assignments.setdefault(fish, []).append(bait)
 
+    # Assign bait to the two closest fish
+    closest_two_fish = find_two_closest_fish_for_food(fishing_line_bait)
+    for fish, _ in closest_two_fish:
+        food_assignments.setdefault(fish, []).append(fishing_line_bait)
+
+    if fish.distance(fishing_line_bait) < EATING_DISTANCE and not fishing_line_bait.is_eaten:
+        fishing_line_bait.get_eaten()
+        fish.eat_food(fishing_line_bait)  # Assuming you have a method for fish to eat food
+        # break
+
+    # Move the caught fish with the fishing line
+    if caught_fish:
+        tip_x, tip_y = person.fishing_line.get_bait_coordinates()
+        caught_fish.goto(tip_x, tip_y)
+        caught_fish.hide_stomach_display()
 
     # Update fish and check for birth conditions
     for fish in fishes[:]:  # Use a copy of the list as it may be modified
-        assigned_food = food_assignments.get(fish, [])
-        active_assigned_food = [f for f in assigned_food if f.ycor() < FOOD_ACTIVE_HEIGHT]
-        if active_assigned_food:
-            # Let the fish swim towards the closest active assigned food
-            closest_food = min(active_assigned_food, key=lambda x: fish.distance(x))
-            fish.swim_towards_food_or_bait()
-        else:
-            fish.swim_in_school()
+        if fish != caught_fish:  # Skip the caught fish
+            assigned_food = food_assignments.get(fish, [])
+            active_assigned_food = [f for f in assigned_food if f.ycor() < FOOD_ACTIVE_HEIGHT]
+            if active_assigned_food:
+                # Let the fish swim towards the closest active assigned food
+                closest_food = min(active_assigned_food, key=lambda x: fish.distance(x))
+                fish.swim_towards_food_or_bait()
+            else:
+                fish.swim_in_school()
 
-        fish.check_and_remove_near_person()  # Add this line
+            fish.check_and_remove_near_person()  # Add this line
 
-        fish.check_and_give_birth()
+            fish.check_and_give_birth()
+
+            # fish.hide_stomach_display()  # Keep updating position for other fishes
 
 
     # Move the shark
